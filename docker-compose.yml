@@ -1,0 +1,43 @@
+# Indigo Studio — run with:  docker compose up -d
+# Mia never types this; start-studio.bat does it for her.
+
+services:
+  studio:
+    build: .
+    image: indigo-studio
+    container_name: indigo-studio
+    restart: unless-stopped
+
+    ports:
+      # host:container. 4100 is unlikely to clash with anything on a
+      # normal Windows machine.
+      - "4100:4100"
+
+    volumes:
+      # The live working copy of the website repo. The app clones into
+      # here on first run if it is empty. Bind-mounted (not a named
+      # volume) so Mia can open the folder in File Explorer and see her
+      # photos, and so nothing is lost if the container is removed.
+      - ./site:/site
+      # The saved GitHub token. Deliberately OUTSIDE ./site so it can
+      # never be committed to the website repo.
+      - ./config:/config
+
+    environment:
+      # Which repo publishes the live site. This is the PUBLIC repo that
+      # GitHub Pages serves — not the private indigo-dev-history one.
+      REPO_URL: "https://github.com/Bas-design/indigo-interiors.git"
+      REPO_BRANCH: "main"
+      # Where project folders live inside that repo. The publish step
+      # refuses to stage anything outside this path, so the Studio can
+      # never alter the site's HTML, CSS or JavaScript.
+      PROJECTS_SUBDIR: "assets/projects"
+      LIVE_URL: "https://indigointeriors.com.au"
+      TZ: "Australia/Sydney"
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4100/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

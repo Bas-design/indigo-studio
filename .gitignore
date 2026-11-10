@@ -1,0 +1,10 @@
+# The working copy of the website repo, cloned on first run. It is its own
+# git repository — never nest it inside this one.
+site/
+
+# The saved GitHub token. Mounted outside site/ precisely so it can never
+# be committed to the website repo, but ignore it here too.
+config/
+
+# Container-installed dependencies
+app/node_modules/

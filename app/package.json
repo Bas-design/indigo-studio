@@ -1,0 +1,15 @@
+{
+  "name": "indigo-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local project editor for the Indigo Interiors website. Runs in Docker on Mia's PC: add and edit gallery projects through a form, preview the real site, publish to GitHub Pages with one button.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "4.21.2",
+    "multer": "1.4.5-lts.1",
+    "sharp": "0.33.5"
+  }
+}
