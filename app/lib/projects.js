@@ -298,12 +298,37 @@ function runScript(file) {
   });
 }
 
+/* Scripts whose order matters go here; anything else found in the
+   folder runs after them, alphabetically. Discovering rather than
+   hardcoding matters: the website repo syncs itself, so a generator
+   added there would otherwise sit unused until every copy of the
+   Studio was updated by hand — which is exactly how a project can end
+   up with a gallery tile pointing at a page nobody generated. */
+const PREFERRED_ORDER = [
+  'rebuild-preview-data.js',
+  'rebuild-project-pages.js',
+  'rebuild-sitemap.js',
+];
+
 async function runRebuilds() {
-  const results = [];
-  for (const f of ['rebuild-preview-data.js', 'rebuild-project-pages.js', 'rebuild-sitemap.js']) {
-    if (fs.existsSync(path.join(dir(), f))) results.push(await runScript(f));
-    else results.push({ script: f, ok: false, error: 'Script not found in the repo.' });
+  let found = [];
+  try {
+    found = (await fsp.readdir(dir()))
+      .filter((f) => /^rebuild-[a-z0-9-]+\.js$/i.test(f))
+      .sort();
+  } catch { /* projects dir unreadable — reported by the caller */ }
+
+  const ordered = [
+    ...PREFERRED_ORDER.filter((f) => found.includes(f)),
+    ...found.filter((f) => !PREFERRED_ORDER.includes(f)),
+  ];
+
+  if (!ordered.length) {
+    return [{ script: '(none)', ok: false, error: 'No rebuild scripts found in the repo.' }];
   }
+
+  const results = [];
+  for (const f of ordered) results.push(await runScript(f));
   return results;
 }
 
