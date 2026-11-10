@@ -90,5 +90,5 @@ echo   Your projects and your sign-in were left exactly as they were.
 echo.
 echo   Start it again with "Start Indigo Studio.bat".
 echo.
-timeout /t 10 /nobreak >nul
+>nul ping -n 11 127.0.0.1
 endlocal

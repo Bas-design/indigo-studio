@@ -14,5 +14,5 @@ echo   Stopped. Your work is safe in the "site" folder.
 echo   Anything you had not published yet is still waiting for you
 echo   next time you start the Studio.
 echo.
-timeout /t 6 /nobreak >nul
+>nul ping -n 7 127.0.0.1
 endlocal
