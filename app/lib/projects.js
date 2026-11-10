@@ -278,8 +278,13 @@ async function reorder(order) {
    reimplementing them here — they stay the single source of truth, and
    Mia never has to know they exist.
 
-   rebuild-preview-data.js -> assets/projects/projects-data.js
-   rebuild-sitemap.js      -> sitemap.xml  (site root) */
+   rebuild-preview-data.js  -> assets/projects/projects-data.js
+   rebuild-project-pages.js -> projects/<slug>/index.html  (site root)
+   rebuild-sitemap.js       -> sitemap.xml                 (site root)
+
+   The project-pages one matters most: without it a new project has no
+   real page of its own, so a link to it shared on Instagram or
+   WhatsApp would preview the generic site image instead of the room. */
 function runScript(file) {
   return new Promise((resolve) => {
     execFile('node', [file], { cwd: dir(), timeout: 60000 }, (err, stdout, stderr) => {
@@ -295,7 +300,7 @@ function runScript(file) {
 
 async function runRebuilds() {
   const results = [];
-  for (const f of ['rebuild-preview-data.js', 'rebuild-sitemap.js']) {
+  for (const f of ['rebuild-preview-data.js', 'rebuild-project-pages.js', 'rebuild-sitemap.js']) {
     if (fs.existsSync(path.join(dir(), f))) results.push(await runScript(f));
     else results.push({ script: f, ok: false, error: 'Script not found in the repo.' });
   }
