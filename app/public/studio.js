@@ -580,6 +580,152 @@ function wireEditor() {
   };
 }
 
+/* --------------------------- testimonials --------------------------- */
+
+/* Same editing feel as a project: typing saves itself, nothing to
+   remember to press. The list is small enough to rewrite whole on each
+   save rather than tracking per-item changes. */
+let quotes = null;      // { list, saveTimer }
+
+function setQuoteSaveState(text, bad) {
+  const el = $('#qSaveState');
+  if (el) { el.textContent = text; el.style.color = bad ? 'var(--bad)' : 'var(--body)'; }
+}
+
+function queueQuoteSave() {
+  if (!quotes) return;
+  setQuoteSaveState('Saving…');
+  clearTimeout(quotes.saveTimer);
+  quotes.saveTimer = setTimeout(saveQuotes, 700);
+}
+
+async function saveQuotes() {
+  if (!quotes) return;
+  try {
+    const res = await api('/testimonials', {
+      method: 'PUT', body: JSON.stringify({ testimonials: quotes.list }),
+    });
+    setQuoteSaveState('Saved');
+    paintQuoteProblems(res.problems);
+    refresh().catch(() => {});
+  } catch (err) {
+    setQuoteSaveState('Not saved — ' + err.message, true);
+  }
+}
+
+function paintQuoteProblems(problems) {
+  const box = $('#qProblems');
+  if (!box) return;
+  const list = problems || [];
+  box.innerHTML = list.length
+    ? `<div class="note note--bad"><ul class="problems" style="color:inherit">${
+        list.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>`
+    : '';
+}
+
+function quoteCard(t, i, total) {
+  return `
+  <div class="card" data-quote="${i}">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">
+      <strong style="font-size:.85rem">Testimonial ${i + 1}</strong>
+      <div style="margin-left:auto;display:flex;gap:.3rem;align-items:center">
+        <button class="nudge" data-qup="${i}" ${i === 0 ? 'disabled' : ''} aria-label="Move up">▲</button>
+        <button class="nudge" data-qdown="${i}" ${i === total - 1 ? 'disabled' : ''} aria-label="Move down">▼</button>
+        <button class="btn btn--tiny btn--quiet" data-qdel="${i}">Remove</button>
+      </div>
+    </div>
+    <label><span>What they said</span>
+      <textarea data-qfield="quote" data-qi="${i}" rows="3"
+        placeholder="Mia understood our home better than we did…">${esc(t.quote)}</textarea>
+      <div class="hint">Write it plainly — the quotation marks are added by the website.</div>
+    </label>
+    <div class="row">
+      <label><span>Who said it</span>
+        <input type="text" data-qfield="name" data-qi="${i}" value="${esc(t.name)}" placeholder="Sarah &amp; James">
+      </label>
+      <label><span>Suburb</span>
+        <input type="text" data-qfield="location" data-qi="${i}" value="${esc(t.location)}" placeholder="Harrington Park">
+      </label>
+    </div>
+  </div>`;
+}
+
+function paintQuotes() {
+  $('#qList').innerHTML = quotes.list.length
+    ? quotes.list.map((t, i) => quoteCard(t, i, quotes.list.length)).join('')
+    : `<div class="card"><p class="muted">No testimonials yet. The website is
+       showing its three built-in ones until you add some here.</p></div>`;
+  wireQuotes();
+}
+
+function wireQuotes() {
+  view.querySelectorAll('[data-qfield]').forEach((el) => {
+    el.oninput = () => {
+      quotes.list[+el.dataset.qi][el.dataset.qfield] = el.value;
+      queueQuoteSave();
+    };
+  });
+  const swap = (i, j) => {
+    if (j < 0 || j >= quotes.list.length) return;
+    quotes.list.splice(j, 0, quotes.list.splice(i, 1)[0]);
+    paintQuotes(); queueQuoteSave();
+  };
+  view.querySelectorAll('[data-qup]').forEach((b) => { b.onclick = () => swap(+b.dataset.qup, +b.dataset.qup - 1); });
+  view.querySelectorAll('[data-qdown]').forEach((b) => { b.onclick = () => swap(+b.dataset.qdown, +b.dataset.qdown + 1); });
+  view.querySelectorAll('[data-qdel]').forEach((b) => {
+    b.onclick = async () => {
+      const i = +b.dataset.qdel;
+      const ok = await confirmBox({
+        title: 'Remove this testimonial?',
+        body: (quotes.list[i].name || 'This one') + ' will be taken off the home page.',
+        okLabel: 'Remove it',
+      });
+      if (!ok) return;
+      quotes.list.splice(i, 1);
+      paintQuotes();
+      clearTimeout(quotes.saveTimer);
+      await saveQuotes();
+    };
+  });
+}
+
+async function renderTestimonials() {
+  view.innerHTML = `<div class="loading">Loading…</div>`;
+  let res;
+  try {
+    res = await api('/testimonials');
+  } catch (err) {
+    view.innerHTML = `<div class="card"><p>${esc(err.message)}</p></div>`;
+    return;
+  }
+  quotes = { list: res.testimonials, saveTimer: null };
+
+  view.innerHTML = `
+    <div class="head">
+      <h1>Testimonials</h1>
+      <div class="head__right">
+        <span id="qSaveState" class="muted"></span>
+        <a class="btn btn--quiet" href="/#testimonials" target="_blank" rel="noopener">Preview&nbsp;↗</a>
+        <button class="btn" id="qAdd">+ Add one</button>
+      </div>
+    </div>
+    <p class="muted">These are the quotes on the home page. Changes save as you
+    type, then go live when you press Publish.</p>
+    <div id="qProblems"></div>
+    <div id="qList"></div>
+  `;
+
+  paintQuoteProblems(res.problems);
+  paintQuotes();
+
+  $('#qAdd').onclick = () => {
+    quotes.list.push({ quote: '', name: '', location: '' });
+    paintQuotes();
+    const last = view.querySelector(`[data-quote="${quotes.list.length - 1}"] textarea`);
+    if (last) last.focus();
+  };
+}
+
 /* ------------------------------ publish ------------------------------ */
 
 function renderPublish() {
@@ -833,6 +979,13 @@ async function route() {
     try { editor = leaving; await doSave(); } finally { editor = null; }
   }
 
+  if (quotes) {
+    clearTimeout(quotes.saveTimer);
+    const leaving = quotes;
+    quotes = null;
+    try { quotes = leaving; await saveQuotes(); } finally { quotes = null; }
+  }
+
   const hash = location.hash.replace(/^#/, '') || 'list';
   const [screen, arg] = hash.split('/');
 
@@ -853,6 +1006,7 @@ async function route() {
 
   paintChrome();
   if (screen === 'edit' && arg) return renderEdit(decodeURIComponent(arg));
+  if (screen === 'testimonials') return renderTestimonials();
   if (screen === 'publish') return renderPublish();
   if (screen === 'signin') return renderSignIn();
   return renderList();

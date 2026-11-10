@@ -7,16 +7,20 @@
    cleans passes that list explicitly, so a bug here cannot rewrite the
    site's HTML, CSS or JavaScript — the parts Mia cannot repair herself.
 
-   The list is exactly three entries:
+   The list is exactly four entries:
      assets/projects  — project folders, photos, projects.json, and the
                         projects-data.js snapshot
      projects/        — the generated per-project pages, one directory
                         each, written by rebuild-project-pages.js
+     assets/content/  — editable copy that is not part of a project, at
+                        present just the testimonials
      sitemap.xml      — site root, written by rebuild-sitemap.js, because
                         each new project adds a URL for search engines
 
-   The last two sit outside the projects folder but are entirely machine
-   generated, so they are safe for the Studio to own. Nothing else is —
+   projects/ and sitemap.xml sit outside the projects folder but are
+   entirely machine generated, and assets/content holds only data the
+   Studio itself edits, so all three are safe for it to own. Nothing
+   else is —
    in particular the hand-written pages, the CSS and the JavaScript stay
    out of reach. */
 
@@ -31,10 +35,11 @@ const BRANCH = process.env.REPO_BRANCH || 'main';
 const PROJECTS_SUBDIR = process.env.PROJECTS_SUBDIR || 'assets/projects';
 const SITEMAP_FILE = process.env.SITEMAP_FILE || 'sitemap.xml';
 const PAGES_SUBDIR = process.env.PAGES_SUBDIR || 'projects';
+const CONTENT_SUBDIR = process.env.CONTENT_SUBDIR || 'assets/content';
 
 /* The complete set of paths the Studio is allowed to write. See the note
    at the top of this file — do not widen it without a good reason. */
-const PUBLISH_PATHS = [PROJECTS_SUBDIR, PAGES_SUBDIR, SITEMAP_FILE];
+const PUBLISH_PATHS = [PROJECTS_SUBDIR, PAGES_SUBDIR, CONTENT_SUBDIR, SITEMAP_FILE];
 
 /* The username goes in the remote URL (it is not a secret); the token is
    supplied by the askpass helper from GIT_TOKEN, so it never appears in

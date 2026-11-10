@@ -22,6 +22,7 @@ const repo = require('./lib/repo');
 const projects = require('./lib/projects');
 const images = require('./lib/images');
 const github = require('./lib/github');
+const content = require('./lib/content');
 
 const PORT = parseInt(process.env.PORT, 10) || 4100;
 const SITE_DIR = repo.SITE_DIR;
@@ -80,6 +81,7 @@ app.get('/api/state', wrap(async (req, res) => {
     repo.isRepo() ? projects.listAll() : Promise.resolve({ visible: [], hidden: [], categories: projects.CATEGORIES }),
     repo.behindCount(),
   ]);
+  const testimonials = await content.readTestimonials();
   res.json({
     auth: cred ? { login: cred.login, name: cred.name, avatar: cred.avatar, repo: cred.repo } : null,
     repo: {
@@ -93,6 +95,8 @@ app.get('/api/state', wrap(async (req, res) => {
       liveUrl: LIVE_URL,
     },
     ...list,
+    testimonials,
+    testimonialProblems: content.checkTestimonials(testimonials),
     limits: { maxEdge: images.MAX_EDGE, targetBytes: images.TARGET_BYTES },
   });
 }));
@@ -145,6 +149,18 @@ app.delete('/api/projects/:slug', wrap(async (req, res) => {
   const slug = projects.assertSafeSlug(req.params.slug);
   await projects.eraseProject(slug);
   res.json({ ok: true });
+}));
+
+/* The three quotes on the home page. Stored as JSON and rendered by
+   js/main.js, because the Studio must not write index.html itself. */
+app.get('/api/testimonials', wrap(async (req, res) => {
+  const testimonials = await content.readTestimonials();
+  res.json({ testimonials, problems: content.checkTestimonials(testimonials) });
+}));
+
+app.put('/api/testimonials', wrap(async (req, res) => {
+  const saved = await content.writeTestimonials((req.body && req.body.testimonials) || []);
+  res.json({ testimonials: saved, problems: content.checkTestimonials(saved) });
 }));
 
 app.post('/api/order', wrap(async (req, res) => {
